@@ -3,6 +3,7 @@ package com.fola.data.remote.api
 import com.fola.data.remote.dto.CoachDTO
 import com.fola.data.remote.dto.CoachReviewDTO
 import com.fola.domain.model.Coach
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -25,10 +26,16 @@ interface CoachApi {
         //       @Header("Authorization") token: String
     ): Response<CoachDTO>
 
+    @Multipart
     @POST("/api/Coachs")
     suspend fun addCoach(
-        @Body coach: CoachDTO,
+        @Part("FirstName") firstName: RequestBody,
+        @Part("LastName") lastName: RequestBody,
+        @Part("Specialty") specialty: RequestBody,
+        @Part("Bio") bio: RequestBody,
+        @Part image: MultipartBody.Part?
     ): Response<Unit>
+
 
     @Multipart
     @PUT("/api/Coachs/{id}")
@@ -38,11 +45,9 @@ interface CoachApi {
         @Part("LastName") lastName: RequestBody,
         @Part("Specialty") specialty: RequestBody,
         @Part("Bio") bio: RequestBody,
-        @Part("Birth_Of_Date") birthDate: RequestBody,
-        @Part("PhoneNumber") phoneNumber: RequestBody,
-        @Part("Salary") salary: RequestBody,
-        @Part("Image") image: RequestBody?
+        @Part("Image") image: RequestBody
     ): Response<Unit>
+
 
 
     @PUT("/api/Coachs/{id}/toggle-status")

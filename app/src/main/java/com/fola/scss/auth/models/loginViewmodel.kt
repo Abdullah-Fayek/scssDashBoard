@@ -30,8 +30,12 @@ class LoginViewModel(
     val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
 
     val loadingIcon = MutableStateFlow(false)
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
 
     fun logIn() {
+        _isRefreshing.value = true
         loadingIcon.value = true
         viewModelScope.launch(Dispatchers.IO) {
             val  result = authRepository.login(
@@ -42,6 +46,7 @@ class LoginViewModel(
                _snackbarMessage.value = result.exceptionOrNull()?.localizedMessage ?: "can't login right now"
            }
         }
+        _isRefreshing.value = false
     }
 
     fun setEmail(email: String) {

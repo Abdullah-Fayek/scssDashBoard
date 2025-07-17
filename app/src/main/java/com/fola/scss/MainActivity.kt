@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fola.data.repositryImp.AuthRepositoryImp
 import com.fola.data.session.UserSession
+import com.fola.data.session.UserSession.isRefreshing
 import com.fola.domain.repo.AuthRepository
 import com.fola.scss.auth.models.LoginViewModel
 import com.fola.scss.auth.ui.LoadingScreen
@@ -31,7 +33,6 @@ const val tag = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -39,25 +40,48 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isLoggedInState = UserSession.isLoggedIn().collectAsState(initial = false)
-            val isRefreshing = remember { mutableStateOf(true) }
+            val isRefreshing = isRefreshing.collectAsState()
+
+            var loginViewModel: LoginViewModel? = null
+            var isLogIn = remember { mutableStateOf(false) }
+            Log.d("MainActivity", "onCreate:  get user ${UserSession.getUser()}")
+
+            if (!isLoggedInState.value) {
+                val repo = AuthRepositoryImp()
+                val factory = LoginViewModelFactory(repo)
+                loginViewModel = viewModel(factory = factory)
+                isLogIn = loginViewModel.isRefreshing.collectAsState() as MutableState<Boolean>
+            }
 
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
+                    Log.d(
+                        "MainActivity",
+                        "onCreate: refreshToken: ${UserSession.getRefreshToken()}"
+                    )
+                    Log.d("MainActivity", "onCreate: token: ${UserSession.getToken()}")
+                    Log.d(
+                        "MainActivity",
+                        "onCreate: sessionToken: ${UserSession.getSessionToken()}"
+                    )
                     UserSession.refreshKey()
-                    isRefreshing.value = false
+                    Log.d(
+                        "MainActivity",
+                        "onCreate: refreshToken: ${UserSession.getRefreshToken()}"
+                    )
+                    Log.d("MainActivity", "onCreate: token: ${UserSession.getToken()}")
+                    Log.d(
+                        "MainActivity",
+                        "onCreate: sessionToken: ${UserSession.getSessionToken()}"
+                    )
                 }
             }
 
             AppTheme {
                 when {
-                    isRefreshing.value -> LoadingScreen()
+                    isRefreshing.value || isLogIn.value -> LoadingScreen()
                     isLoggedInState.value -> BasicScreen()
-                    else -> {
-                        val repo = AuthRepositoryImp()
-                        val factory = LoginViewModelFactory(repo)
-                        val loginViewModel: LoginViewModel = viewModel(factory = factory)
-                        LoginScreen(viewmodel = loginViewModel)
-                    }
+                    else -> LoginScreen(viewmodel = loginViewModel!!)
                 }
             }
         }

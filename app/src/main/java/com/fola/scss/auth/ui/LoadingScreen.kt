@@ -1,6 +1,7 @@
 package com.fola.scss.auth.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,8 +17,10 @@ import com.fola.scss.ui.theme.AppTheme
 fun LoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.background.copy(alpha= .2f))
+            .clickable(enabled = false , onClick = {}),
+        contentAlignment = Alignment.Center,
+
     ) {
         CircularProgressIndicator()
 

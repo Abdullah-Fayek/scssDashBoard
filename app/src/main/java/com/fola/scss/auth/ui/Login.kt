@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -148,11 +149,11 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = { viewmodel.setEmail(it) },
-                            label = { Text("Email") },
+                            label = { Text("Phone Number") },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = "Email Icon",
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = "Phone Icon",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },

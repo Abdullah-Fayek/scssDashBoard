@@ -1,15 +1,22 @@
 package com.fola.data.repositryImp
 
+import android.util.Base64
+import android.util.Log
 import com.fola.data.remote.api.CoachApi
 import com.fola.data.remote.dto.CoachDTO
 import com.fola.data.remote.dto.CoachReviewDTO
 import com.fola.data.remote.retrofitBuilder.retrofit
+import com.fola.data.session.UserSession
 import com.fola.domain.model.Coach
 import com.fola.domain.model.CoachReviews
 import com.fola.domain.repo.CoachRepository
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 
 class CoachRepositoryImp : CoachRepository {
 
@@ -17,12 +24,24 @@ class CoachRepositoryImp : CoachRepository {
     // private val TOKEN = UserSession.getToken()
 
     override suspend fun addCoach(coach: Coach): Result<String> {
-        val addCoach = c.addCoach(coach.toCoachDto())
-        return if (addCoach.isSuccessful) {
+
+        Log.d("refreshKey", "addCoach: ${UserSession.getRefreshToken()}")
+        Log.d("refreshKey", "addCoach: ${UserSession.getToken()}")
+        val result = c.addCoach(
+            firstName = coach.firstName.toTextPlainRequestBody(),
+            lastName = coach.lastName.toTextPlainRequestBody(),
+            specialty = coach.specialty.toTextPlainRequestBody(),
+            bio = coach.bio.toTextPlainRequestBody(),
+            image = coach.image?.toMultipartPartOrNull()
+        )
+
+        Log.d("CoachRepositoryImp", "addCoach: ${result.body()}")
+
+        return if (result.isSuccessful) {
             Result.success("Coach added successfully")
         } else {
-            val code = addCoach.code()
-            val error = addCoach.errorBody()?.string()
+            val code = result.code()
+            val error = result.errorBody()?.string()
             Result.failure(Exception("coach failed: $code ${error ?: "No error body"}"))
         }
     }
@@ -55,23 +74,29 @@ class CoachRepositoryImp : CoachRepository {
     }
 
     override suspend fun editCoach(coach: Coach): Result<String> {
+        Log.d("refreshKey", "editCoach: ${UserSession.getRefreshToken()}")
+        Log.d("refreshKey", "editCoach: ${UserSession.getToken()}")
+        Log.d("CoachRepositoryImp", "editCoach: ${coach.toString()}")
         val result = c.updateCoach(
             id = coach.id,
-            firstName = coach.firstName.toTextPlainRequestBody(),
-            lastName = coach.lastName.toTextPlainRequestBody(),
-            phoneNumber = coach.phoneNumber.toTextPlainRequestBody(),
-            bio = coach.bio.toTextPlainRequestBody(),
-            salary = coach.salary.toTextPlainRequestBody(),
-            specialty = coach.specialty.toTextPlainRequestBody(),
-            birthDate = coach.dateOfBirth.toTextPlainRequestBody(),
-            image = coach.image?.toTextPlainRequestBody()
+            firstName = coach.firstName.toPlainTextBody(),
+            lastName = coach.lastName.toPlainTextBody(),
+            specialty = coach.specialty.toPlainTextBody(),
+            bio = coach.bio.toPlainTextBody(),
+            image = emptyImageBody()
         )
-        return if (result.isSuccessful)
+
+        return if (result.isSuccessful) {
             Result.success("edit successfully")
-        else {
-            val code = result.code()
-            val error = result.errorBody()?.string()
-            Result.failure(Exception("coach failed: $code ${error ?: "No error body"}"))
+        } else {
+            val error = try {
+                result.errorBody()?.string()
+            } catch (e: Exception) {
+                "Failed to parse error: ${e.message}"
+            }
+
+            Log.e("CoachRepositoryImp", "editCoach failed: ${result.code()} $error")
+            Result.failure(Exception("Coach update failed: ${result.code()} $error"))
         }
     }
 
@@ -145,18 +170,43 @@ class CoachRepositoryImp : CoachRepository {
         return this.toString().toRequestBody("text/plain".toMediaTypeOrNull())
     }
 
+    private fun emptyImageRequestBody(): RequestBody {
+        return "".toRequestBody("text/plain".toMediaTypeOrNull())
+    }
+
+
+    fun String.toPlainTextBody(): RequestBody =
+        this.toRequestBody("text/plain".toMediaType())
+
+    fun Int.toPlainTextBody(): RequestBody =
+        this.toString().toPlainTextBody()
+
+    fun emptyImageBody(): RequestBody =
+        "".toRequestBody("text/plain".toMediaType())
+
+
+    private fun String.toMultipartPartOrNull(): MultipartBody.Part? {
+        return try {
+            val imageBytes = Base64.decode(this, Base64.DEFAULT)
+            val tempFile = File.createTempFile("coach_img", ".jpg")
+            tempFile.writeBytes(imageBytes)
+            val requestFile = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
+            MultipartBody.Part.createFormData("Image", tempFile.name, requestFile)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+
     private fun CoachDTO.toCoach(): Coach {
         return Coach(
             id = id,
             firstName = firstName,
             lastName = lastName,
-            salary = salary,
             avgRating = averageRating,
             specialty = specialty,
             image = image,
-            bio = bio,
-            dateOfBirth = dateOfBirth,
-            phoneNumber = phoneNumber
+            bio = bio
         )
     }
 
@@ -171,15 +221,11 @@ class CoachRepositoryImp : CoachRepository {
         return CoachDTO(
             id = id,
             bio = bio,
-            dateOfBirth = dateOfBirth,
             firstName = firstName,
             lastName = lastName,
-            phoneNumber = phoneNumber,
-            salary = salary,
             specialty = specialty,
             averageRating = avgRating,
             image = image,
-            isDisabled = false
         )
     }
 

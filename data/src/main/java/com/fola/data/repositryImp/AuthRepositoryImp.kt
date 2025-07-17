@@ -1,6 +1,5 @@
 package com.fola.data.repositryImp
 
-import android.util.Log
 import com.fola.data.remote.api.UserApi
 import com.fola.data.remote.dto.UserDTO
 import com.fola.data.remote.retrofitBuilder.retrofit

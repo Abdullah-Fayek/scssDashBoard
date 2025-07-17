@@ -10,7 +10,6 @@ import com.fola.domain.repo.AppointmentRepository
 class AppointmentImp : AppointmentRepository {
 
     private val c = retrofit.create(AppointmentApi::class.java)
-  //  private val token = "Bearer ${UserSession.getToken()}"
     private val tag = "Appointment Imp"
 
 

@@ -8,11 +8,15 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fola.data.remote.api.UserApi
+import com.fola.data.remote.dto.ProfileDTO
 import com.fola.data.remote.retrofitBuilder.retrofit
+import com.fola.domain.model.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -32,6 +36,12 @@ data object UserSession {
     private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_key")
     private val userRetrofit = retrofit.create(UserApi::class.java)
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    private var user: ProfileDTO? = null
+
+
     private var _sessionToken: String = ""
 
     fun init(appContext: Context) {
@@ -39,6 +49,7 @@ data object UserSession {
             context = appContext.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             _sessionToken = getSessionToken()
+            setUser()
         }
     }
 
@@ -73,14 +84,12 @@ data object UserSession {
             )
             Log.d("UserSession", "Logout API call successful.")
         } catch (e: IOException) {
-            Log.e("UserSession", "Network error during logout: ${e.message}")
+            Log.d("UserSession", "Network error during logout: ${e.message}")
         } catch (e: Exception) {
-            Log.e("UserSession", "Error during logout API call: ${e.message}", e)
+            Log.d("UserSession", "Error during logout API call: ${e.message}", e)
         } finally {
             context.dataStore.edit {
                 it[IS_LOGGED_IN_KEY] = false
-                it[TOKEN_KEY] = ""
-                it[REFRESH_TOKEN_KEY] = ""
             }
             Log.d("UserSession", "Local session data cleared.")
         }
@@ -99,36 +108,41 @@ data object UserSession {
     }
 
     suspend fun setSessionToken(token: String) {
-            _sessionToken = token
-            context.dataStore.edit { prefs ->
-                prefs[TOKEN_KEY] = token
+        _sessionToken = token
+        context.dataStore.edit { prefs ->
+            prefs[TOKEN_KEY] = token
         }
     }
 
     suspend fun setRefreshToken(refreshToken: String) {
-            context.dataStore.edit { prefs ->
-                prefs[REFRESH_TOKEN_KEY] = refreshToken
+        context.dataStore.edit { prefs ->
+            prefs[REFRESH_TOKEN_KEY] = refreshToken
 
         }
     }
 
     suspend fun refreshKey(): Result<Boolean> {
+
+        _isRefreshing.value = true
         val token = getSessionToken()
         val refreshToken = getRefreshToken()
 
+
         Log.d("session-token", "Starting refreshKey with token=$token, refresh=$refreshToken")
 
-        if (token.isEmpty() || refreshToken.isEmpty()) {
-            Log.d("session-token", "Token or refresh token is empty. Clearing session.")
+        if (token.isNullOrEmpty() || refreshToken.isNullOrEmpty()) {
+            Log.e(
+                "session-token",
+                "Can't refresh: token or refreshToken is blank. Session will be cleared."
+            )
+            _isRefreshing.value = false
             clearSession()
-            return Result.failure(Exception("Token or Refresh Token is empty. Clearing session."))
+            return Result.failure(IllegalStateException("Can't refresh: Missing token or refreshToken"))
         }
 
-        try {
-            Log.d("session-token", "Sending refresh request to API")
+        return try {
             val response = userRetrofit.refreshToken(
                 mapOf("token" to token, "refreshToken" to refreshToken),
-                token = "Bearer $token"
             )
             Log.d(
                 "session-token",
@@ -137,33 +151,63 @@ data object UserSession {
 
             if (response.isSuccessful) {
                 val body = response.body()
-                Log.d("session-token", "Response body: $body")
                 if (body != null) {
-                        setSessionToken(body.token)
-                        setRefreshToken(body.refreshToken)
+                    setSessionToken(body.token)
+                    setRefreshToken(body.refreshToken)
+                    _isRefreshing.value = false
                     return Result.success(true)
+
                 } else {
-                    Log.e("session-token", "API success but no body")
+                    Log.w("session-token", "API success but no body")
                     clearSession()
+                    _isRefreshing.value = false
                     return Result.failure(Exception("API success but no body"))
                 }
             } else {
                 val errorBody = response.errorBody()?.string() ?: "No error body"
-                Log.e("session-token", "Refresh failed with code=${response.code()}: $errorBody")
+                Log.w("session-token", "Refresh failed with code=${response.code()}: $errorBody")
                 clearSession()
+                _isRefreshing.value = false
                 return Result.failure(Exception("Refresh failed: $errorBody"))
             }
         } catch (e: IOException) {
-            Log.e("session-token", "Network error during refresh: ${e.message}", e)
+            Log.w("session-token", "Network error during refresh: ${e.message}", e)
+            _isRefreshing.value = false
             return Result.failure(Exception("Network error: ${e.message}"))
         } catch (e: Exception) {
-            Log.e("session-token", "Unexpected error during refresh: ${e.message}", e)
+            Log.w("session-token", "Unexpected error during refresh: ${e.message}", e)
+            _isRefreshing.value = false
             return Result.failure(Exception("Unexpected error: ${e.message}"))
         }
     }
 
+
     fun getToken(): String {
         return _sessionToken
+    }
+
+    private suspend fun setUser() {
+        val r = userRetrofit.getUser()
+        if (r.isSuccessful) {
+            user = r.body()
+            Log.d("UserSession", "User data fetched successfully: $user")
+        } else {
+            Log.e("UserSession", "Failed to fetch user data: ${r.errorBody()?.string()}")
+        }
+    }
+
+    fun getUser(): ProfileDTO {
+        if (user == null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                setUser()
+            }
+        }
+        return user ?: ProfileDTO(
+            membershipNumber = "Unknown",
+            userName = "unknown",
+            firstName = "Guest",
+            lastName = "Guest"
+        )
     }
 
 

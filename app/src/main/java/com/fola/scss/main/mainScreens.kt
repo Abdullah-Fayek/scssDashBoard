@@ -20,8 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -29,13 +27,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.fola.data.repositryImp.AppointmentImp
 import com.fola.data.repositryImp.CoachRepositoryImp
+import com.fola.data.repositryImp.QAsRepositoryImp
 import com.fola.data.repositryImp.ServiceImp
 import com.fola.domain.usecase.CoachUseCase
+import com.fola.domain.usecase.HomeUseCase
 import com.fola.scss.main.coach.CoachScreen
 import com.fola.scss.main.coach.CoachViewModelFactory
 import com.fola.scss.main.coach.CoachViewmodel
+import com.fola.scss.main.home.DashBoardModelFactory
 import com.fola.scss.main.home.DashboardScreen
+import com.fola.scss.main.home.DashboardViewModel
 import com.fola.scss.main.screens.AdminScreen
 import com.fola.scss.main.users.UserScreen
 import com.fola.scss.ui.theme.AppTheme
@@ -65,15 +68,28 @@ fun MainApp(modifier: Modifier = Modifier) {
             startDestination = MainScreen.Home.route,
             modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
         ) {
+            val coachRepo = CoachRepositoryImp()
+            val serviceRepo = ServiceImp()
+            val qAsRepository = QAsRepositoryImp()
+            val appointmentRepo = AppointmentImp()
+
             composable(route = MainScreen.Home.route) {
-                DashboardScreen()
+                val homeUseCase = HomeUseCase(
+                    coachRepository = coachRepo,
+                    servicesRepository = serviceRepo,
+                    qAsRepository = qAsRepository,
+                    appointmentRepository = appointmentRepo
+                )
+                val factory = DashBoardModelFactory(
+                    homeUseCase = homeUseCase
+                )
+                val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
+                DashboardScreen(viewModel = dashboardViewModel)
             }
             composable(route = MainScreen.User.route) {
                 UserScreen()
             }
             composable(route = MainScreen.Coach.route) {
-                val coachRepo = CoachRepositoryImp()
-                val serviceRepo = ServiceImp()
                 val coachUseCase = CoachUseCase(
                     coachRepository = coachRepo,
                     servicesRepository = serviceRepo

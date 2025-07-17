@@ -90,7 +90,7 @@ val client = OkHttpClient.Builder()
 
 val retrofit: Retrofit = Retrofit
     .Builder()
-    .baseUrl("http://club-api.runasp.net")
+    .baseUrl("https://club-api.runasp.net")
     .client(client)
     .addConverterFactory(MoshiConverterFactory.create(moshi))
     .build()

@@ -4,12 +4,13 @@ import com.fola.data.remote.api.QAsApi
 import com.fola.data.remote.dto.QAsDTO
 import com.fola.data.remote.retrofitBuilder.retrofit
 import com.fola.domain.model.QA
+import com.fola.domain.repo.QAsRepository
 
 
-class QAsRepositoryImp {
+class QAsRepositoryImp : QAsRepository{
     private val c = retrofit.create(QAsApi::class.java)
 
-    suspend fun getAllQAs(): Result<List<QA>> {
+    override suspend fun getAllQAs(): Result<List<QA>> {
         val r = c.getAllQAs()
         return if (r.isSuccessful) {
             r.body()?.let {
@@ -24,7 +25,7 @@ class QAsRepositoryImp {
         }
     }
 
-    suspend fun getQAById(qa: QA): Result<QA> {
+    override suspend fun getQAById(qa: QA): Result<QA> {
         val id = qa.id ?: return Result.failure(Exception("id is null"))
         val r = c.getQAs(id)
         return if (r.isSuccessful) {
@@ -38,13 +39,13 @@ class QAsRepositoryImp {
         }
     }
 
-    suspend fun editeQA(qa: QA): Result<QA> {
+    override suspend fun editeQA(qa: QA): Result<Unit> {
         val id = qa.id ?: return Result.failure(Exception("id is null"))
         val r = c.editQAs(
             id = id, qAs = qa
         )
         return if (r.isSuccessful) {
-            Result.success(qa)
+            Result.success(Unit)
         } else {
             val code = r.code()
             val error = r.errorBody()?.string()
@@ -52,7 +53,7 @@ class QAsRepositoryImp {
         }
     }
 
-    suspend fun deleteQA(qa: QA): Result<Unit> {
+    override suspend fun deleteQA(qa: QA): Result<Unit> {
         val id = qa.id ?: return Result.failure(Exception("id is null"))
         val r = c.deleteQAs(id)
         return if (r.isSuccessful) Result.success(Unit)
@@ -66,7 +67,7 @@ class QAsRepositoryImp {
 
     private fun QAsDTO.toQA(): QA {
         return QA(
-            id = id, question = question, answer = answer, sortNumb = sortNum
+            id = id, question = question, answer = answer
         )
     }
 }

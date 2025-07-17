@@ -4,5 +4,5 @@ data class QAsDTO(
     val id: Int?,
     val answer: String,
     val question: String,
-    val sortNum: Int
+    val sortNum: Int?
 )

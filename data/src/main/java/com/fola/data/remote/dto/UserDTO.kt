@@ -11,7 +11,8 @@ data class UserDTO(
     val membershipNumber: String,
     val phoneNumber: String,
     val refreshToken: String,
-    val token: String
+    val token: String,
+
 )
 
 
